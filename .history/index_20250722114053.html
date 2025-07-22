@@ -811,17 +811,6 @@
             setupNotifications();
         });
 
-        // Calculate time remaining
-        function getTimeRemaining(dueDateTime) {
-            const now = Date.now();
-            const diff = dueDateTime - now;
-            if (diff <= 0) return "Vaxtı keçib";
-
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            return `${hours} saat ${minutes} dəqiqə`;
-        }
-
         // Render tasks
         function renderTasks() {
             const container = document.getElementById('tasks-container');
@@ -895,8 +884,7 @@
                                 ${task.priority === 'high' ? 'Yüksək' : task.priority === 'medium' ? 'Orta' : 'Aşağı'}
                             </span>
                             <span>📅 ${formatDate(task.date)}</span>
-                            <span>⏰ ${task.time}</span>
-                            <span>⌛ Qalan vaxt: ${getTimeRemaining(task.dueDateTime)}</span>
+                            <span>⏰${task.time}</span>
                         </div>
                     </div>
                 `;
@@ -1026,22 +1014,6 @@
                         });
                     }, timeUntilDue - 5 * 60 * 1000);
                 }
-
-                // Schedule hourly reminders
-                if (timeUntilDue > 0) {
-                    const hoursUntilDue = Math.ceil(timeUntilDue / (1000 * 60 * 60));
-                    for (let i = 1; i <= hoursUntilDue; i++) {
-                        const timeToNotify = timeUntilDue - (i * 60 * 60 * 1000);
-                        if (timeToNotify > 0) {
-                            notificationTimers[`${id}_${i}`] = setTimeout(() => {
-                                new Notification(task.title, {
-                                    body: `${getTimeRemaining(task.dueDateTime)} qalıb. Təsvir: ${task.description || 'Təsvir yoxdur'}`,
-                                    icon: 'https://www.gstatic.com/images/branding/product/2x/tasks_64dp.png'
-                                });
-                            }, timeToNotify);
-                        }
-                    }
-                }
             });
         }
 
@@ -1049,11 +1021,6 @@
         window.onload = function() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('task-date').value = today;
-            
-            // Update time remaining display every minute
-            setInterval(() => {
-                renderTasks();
-            }, 60 * 1000);
         }
     </script>
 </body>
