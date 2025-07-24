@@ -78,7 +78,7 @@
             align-items: center;
         }
 
-        .theme-toggle {
+        .theme-toggle, .notification-toggle, .pdf-download-btn {
             background: rgba(255, 255, 255, 0.2);
             border: none;
             padding: 10px 15px;
@@ -90,25 +90,15 @@
             backdrop-filter: blur(10px);
         }
 
-        .theme-toggle:hover {
+        .theme-toggle:hover, .notification-toggle:hover, .pdf-download-btn:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: scale(1.05);
         }
 
         .notification-toggle {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
+            font-size: 1rem;
             padding: 10px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            color: white;
             font-weight: 500;
-            transition: var(--transition);
-            backdrop-filter: blur(10px);
-        }
-
-        .notification-toggle:hover {
-            background: rgba(255, 255, 255, 0.3);
         }
 
         .main-content {
@@ -229,17 +219,6 @@
             background: #4b5563;
         }
 
-        .btn-success {
-            background: var(--success-color);
-            color: white;
-            width: 100%;
-        }
-
-        .btn-danger {
-            background: var(--danger-color);
-            color: white;
-        }
-
         .tasks-section {
             background: var(--light-card);
             padding: 30px;
@@ -259,6 +238,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .tasks-header h2 {
@@ -479,7 +460,6 @@
             margin-top: 5px;
         }
 
-        /* Responsive Design */
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -511,7 +491,6 @@
             }
         }
 
-        /* Loading Animation */
         .loading {
             display: inline-block;
             width: 20px;
@@ -526,7 +505,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Toast Notification */
         .toast {
             position: fixed;
             bottom: 20px;
@@ -540,6 +518,10 @@
             z-index: 1000;
         }
 
+        .toast.error {
+            background: var(--danger-color);
+        }
+
         @keyframes slideUp {
             from {
                 transform: translateY(100px);
@@ -551,7 +533,6 @@
             }
         }
 
-        /* Scrollbar Styling */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -616,17 +597,14 @@
                 </div>
                 <form id="task-form">
                     <input type="hidden" id="task-id">
-                    
                     <div class="form-group">
                         <label for="task-title">Tapşırıq Başlığı</label>
                         <input type="text" id="task-title" placeholder="Məsələn: Layihə təqdimatını hazırla" required>
                     </div>
-
                     <div class="form-group">
                         <label for="task-description">Təsvir</label>
                         <textarea id="task-description" placeholder="Tapşırıq haqqında ətraflı məlumat..."></textarea>
                     </div>
-
                     <div class="form-group">
                         <label for="task-priority">Prioritet</label>
                         <select id="task-priority">
@@ -635,7 +613,6 @@
                             <option value="high">Yüksək</option>
                         </select>
                     </div>
-
                     <div class="datetime-group">
                         <div class="form-group">
                             <label for="task-date">Tarix</label>
@@ -646,7 +623,6 @@
                             <input type="time" id="task-time" required>
                         </div>
                     </div>
-
                     <div class="button-group">
                         <button type="submit" class="btn-primary" id="submit-btn">
                             <span>➕</span> Əlavə Et
@@ -666,6 +642,7 @@
                         <button class="filter-btn" onclick="filterTasks('active')">Aktiv</button>
                         <button class="filter-btn" onclick="filterTasks('completed')">Tamamlanmış</button>
                         <button class="filter-btn" onclick="filterTasks('overdue')">Gecikmiş</button>
+                        <button class="pdf-download-btn" onclick="downloadPDF()">📄 PDF kimi yüklə</button>
                     </div>
                 </div>
                 <div class="tasks-container" id="tasks-container">
@@ -681,7 +658,9 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue, update, remove, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.es.min.js";
+        import "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -709,10 +688,8 @@
         window.toggleTheme = function() {
             const body = document.body;
             const themeIcon = document.getElementById('theme-icon');
-            
             body.classList.toggle('dark-mode');
             const isDark = body.classList.contains('dark-mode');
-            
             themeIcon.textContent = isDark ? '☀️' : '🌙';
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
         }
@@ -730,7 +707,6 @@
                 showToast("Bu brauzer bildirişləri dəstəkləmir", "error");
                 return;
             }
-
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
                 showToast("Bildirişlər aktivləşdirildi! ✅", "success");
@@ -748,18 +724,15 @@
         // Form submission
         document.getElementById('task-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const title = document.getElementById('task-title').value.trim();
             const description = document.getElementById('task-description').value.trim();
             const priority = document.getElementById('task-priority').value;
             const date = document.getElementById('task-date').value;
             const time = document.getElementById('task-time').value;
-            
             if (!title || !date || !time) {
                 showToast("Bütün tələb olunan sahələri doldurun", "error");
                 return;
             }
-
             const taskData = {
                 title,
                 description,
@@ -770,19 +743,15 @@
                 createdAt: Date.now(),
                 dueDateTime: new Date(`${date}T${time}`).getTime()
             };
-
             try {
                 if (editingTaskId) {
-                    // Update existing task
                     await update(ref(database, `tasks/${editingTaskId}`), taskData);
                     showToast("Tapşırıq yeniləndi! ✅", "success");
                     editingTaskId = null;
                 } else {
-                    // Create new task
                     await push(tasksRef, taskData);
                     showToast("Tapşırıq əlavə edildi! ✅", "success");
                 }
-                
                 resetForm();
             } catch (error) {
                 console.error("Error:", error);
@@ -797,8 +766,6 @@
             document.getElementById('form-title').textContent = 'Yeni Tapşırıq Əlavə Et';
             document.getElementById('submit-btn').innerHTML = '<span>➕</span> Əlavə Et';
             editingTaskId = null;
-            
-            // Set default date to today
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('task-date').value = today;
         }
@@ -816,7 +783,6 @@
             const now = Date.now();
             const diff = dueDateTime - now;
             if (diff <= 0) return "Vaxtı keçib";
-
             const hours = Math.floor(diff / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             return `${hours} saat ${minutes} dəqiqə`;
@@ -826,7 +792,6 @@
         function renderTasks() {
             const container = document.getElementById('tasks-container');
             const taskIds = Object.keys(tasks);
-            
             if (taskIds.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -836,13 +801,10 @@
                 `;
                 return;
             }
-
-            // Filter and sort tasks
             let filteredTasks = taskIds.filter(id => {
                 const task = tasks[id];
                 const now = Date.now();
                 const isOverdue = task.dueDateTime < now && !task.completed;
-                
                 switch(currentFilter) {
                     case 'active':
                         return !task.completed && !isOverdue;
@@ -854,10 +816,7 @@
                         return true;
                 }
             });
-
-            // Sort by due date
             filteredTasks.sort((a, b) => tasks[a].dueDateTime - tasks[b].dueDateTime);
-
             if (filteredTasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -867,13 +826,11 @@
                 `;
                 return;
             }
-
             container.innerHTML = filteredTasks.map(id => {
                 const task = tasks[id];
                 const now = Date.now();
                 const isOverdue = task.dueDateTime < now && !task.completed;
                 const taskClass = task.completed ? 'completed' : (isOverdue ? 'overdue' : '');
-                
                 return `
                     <div class="task-item ${taskClass}" data-id="${id}">
                         <div class="task-header">
@@ -932,7 +889,6 @@
         window.editTask = function(taskId) {
             const task = tasks[taskId];
             editingTaskId = taskId;
-            
             document.getElementById('task-id').value = taskId;
             document.getElementById('task-title').value = task.title;
             document.getElementById('task-description').value = task.description;
@@ -941,19 +897,15 @@
             document.getElementById('task-time').value = task.time;
             document.getElementById('form-title').textContent = 'Tapşırığı Redaktə Et';
             document.getElementById('submit-btn').innerHTML = '<span>💾</span> Yenilə';
-            
             document.getElementById('task-title').focus();
         }
 
         // Delete task
         window.deleteTask = async function(taskId) {
             if (!confirm('Bu tapşırığı silmək istədiyinizə əminsiniz?')) return;
-            
             try {
                 await remove(ref(database, `tasks/${taskId}`));
                 showToast("Tapşırıq silindi! 🗑️", "success");
-                
-                // Clear notification timer if exists
                 if (notificationTimers[taskId]) {
                     clearTimeout(notificationTimers[taskId]);
                     delete notificationTimers[taskId];
@@ -982,7 +934,6 @@
             const active = Object.keys(tasks).filter(id => !tasks[id].completed && tasks[id].dueDateTime >= Date.now()).length;
             const completed = Object.keys(tasks).filter(id => tasks[id].completed).length;
             const overdue = Object.keys(tasks).filter(id => tasks[id].dueDateTime < Date.now() && !tasks[id].completed).length;
-
             document.getElementById('total-tasks').textContent = total;
             document.getElementById('active-tasks').textContent = active;
             document.getElementById('completed-tasks').textContent = completed;
@@ -995,7 +946,6 @@
             toast.className = `toast ${type}`;
             toast.textContent = message;
             document.body.appendChild(toast);
-            
             setTimeout(() => {
                 toast.style.animation = 'slideUp 0.3s ease reverse';
                 setTimeout(() => toast.remove(), 300);
@@ -1007,17 +957,11 @@
             if (localStorage.getItem('notificationsEnabled') !== 'true' || !("Notification" in window) || Notification.permission !== "granted") {
                 return;
             }
-
-            // Clear existing timers
             Object.values(notificationTimers).forEach(timer => clearTimeout(timer));
             notificationTimers = {};
-
             Object.entries(tasks).forEach(([id, task]) => {
                 if (task.completed || task.dueDateTime <= Date.now()) return;
-
                 const timeUntilDue = task.dueDateTime - Date.now();
-                
-                // Schedule notification 5 minutes before due time
                 if (timeUntilDue > 0 && timeUntilDue <= 5 * 60 * 1000) {
                     notificationTimers[id] = setTimeout(() => {
                         new Notification(task.title, {
@@ -1026,8 +970,6 @@
                         });
                     }, timeUntilDue - 5 * 60 * 1000);
                 }
-
-                // Schedule hourly reminders
                 if (timeUntilDue > 0) {
                     const hoursUntilDue = Math.ceil(timeUntilDue / (1000 * 60 * 60));
                     for (let i = 1; i <= hoursUntilDue; i++) {
@@ -1045,12 +987,57 @@
             });
         }
 
+        // Download tasks as PDF
+        window.downloadPDF = function() {
+            const doc = new jsPDF();
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(20);
+            doc.text("Tapşırıqlarım", 14, 20);
+            doc.setFontSize(12);
+            doc.text(`Tarix: ${new Date().toLocaleDateString('az-AZ')}`, 14, 30);
+
+            const tableData = Object.entries(tasks)
+                .map(([id, task]) => {
+                    const now = Date.now();
+                    const status = task.completed ? "Tamamlanmış" : (task.dueDateTime < now ? "Gecikmiş" : "Aktiv");
+                    return [
+                        task.title,
+                        task.description || "-",
+                        task.priority === 'high' ? 'Yüksək' : task.priority === 'medium' ? 'Orta' : 'Aşağı',
+                        formatDate(task.date),
+                        task.time,
+                        status,
+                        getTimeRemaining(task.dueDateTime)
+                    ];
+                })
+                .sort((a, b) => new Date(`${a[3]} ${a[4]}`).getTime() - new Date(`${b[3]} ${b[4]}`).getTime());
+
+            doc.autoTable({
+                startY: 40,
+                head: [['Başlıq', 'Təsvir', 'Prioritet', 'Tarix', 'Vaxt', 'Status', 'Qalan Vaxt']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
+                styles: { fontSize: 10, cellPadding: 3 },
+                columnStyles: {
+                    0: { cellWidth: 30 },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 20 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 20 },
+                    5: { cellWidth: 20 },
+                    6: { cellWidth: 30 }
+                }
+            });
+
+            doc.save('tapshiriqlar.pdf');
+            showToast("PDF yükləndi! 📄", "success");
+        }
+
         // Initialize form with today's date
         window.onload = function() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('task-date').value = today;
-            
-            // Update time remaining display every minute
             setInterval(() => {
                 renderTasks();
             }, 60 * 1000);
